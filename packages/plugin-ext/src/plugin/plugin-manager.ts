@@ -341,6 +341,8 @@ export class PluginManagerExtImpl implements PluginManagerExt, PluginManager {
             extensionPath = extensionPath.substring(0, extensionPath.length - 1);
         }
 
+        console.log('>> start plugin ' + extensionPath);
+
         const pluginContext: theia.PluginContext = {
             extensionPath: extensionPath,
             globalState: new Memento(plugin.model.id, true, this.storageProxy),
