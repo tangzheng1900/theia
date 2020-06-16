@@ -335,8 +335,14 @@ export class PluginManagerExtImpl implements PluginManagerExt, PluginManager {
         const logPath = join(configStorage.hostLogPath, plugin.model.id); // todo check format
         const storagePath = configStorage.hostStoragePath ? join(configStorage.hostStoragePath, plugin.model.id) : undefined;
         const globalStoragePath = join(configStorage.hostGlobalStoragePath, plugin.model.id);
+
+        let extensionPath = plugin.pluginFolder;
+        if (extensionPath.endsWith('/')) {
+            extensionPath = extensionPath.substring(0, extensionPath.length - 1);
+        }
+
         const pluginContext: theia.PluginContext = {
-            extensionPath: plugin.pluginFolder,
+            extensionPath: extensionPath,
             globalState: new Memento(plugin.model.id, true, this.storageProxy),
             workspaceState: new Memento(plugin.model.id, false, this.storageProxy),
             subscriptions: subscriptions,
