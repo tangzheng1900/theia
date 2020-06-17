@@ -43,6 +43,10 @@ export class HostedPluginReader implements BackendApplicationContribution {
 
     configure(app: express.Application): void {
         app.get('/hostedPlugin/:pluginId/:path(*)', async (req, res) => {
+            console.log('---------------------------------------------------------------------------------------------');
+            console.log('> PluginReader.get ' + req.url);
+            console.log('---------------------------------------------------------------------------------------------');
+
             const pluginId = req.params.pluginId;
             const filePath = req.params.path;
 

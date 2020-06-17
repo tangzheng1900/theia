@@ -24,6 +24,10 @@ import { FileUri } from '@theia/core/lib/node/file-uri';
 export class WebviewResourceLoaderImpl implements WebviewResourceLoader {
 
     async load(params: LoadWebviewResourceParams): Promise<LoadWebviewResourceResult | undefined> {
+        console.log('*********************************************************************************************');
+        console.log('> WebviewResourceLoaderImpl.load ' + params.uri);
+        console.log('*********************************************************************************************');
+
         const fsPath = FileUri.fsPath(params.uri);
         const stat = await fs.stat(fsPath);
         const eTag = this.compileETag(fsPath, stat);

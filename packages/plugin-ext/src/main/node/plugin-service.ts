@@ -16,6 +16,7 @@
 
 import * as path from 'path';
 import connect = require('connect');
+import * as http from 'http';
 import serveStatic = require('serve-static');
 const vhost = require('vhost');
 import * as express from 'express';
@@ -31,11 +32,30 @@ export class PluginApiContribution implements BackendApplicationContribution {
 
     configure(app: express.Application): void {
         app.get('/plugin/:path(*)', (req, res) => {
+            console.log('=============================================================================================');
+            console.log('=== REQUEST ' + req.url);
+            console.log('=============================================================================================');
+
             const filePath: string = req.params.path;
             res.sendFile(pluginPath + filePath);
         });
 
         const webviewApp = connect();
+
+        webviewApp.use((req: connect.IncomingMessage, res: http.ServerResponse, next: connect.NextFunction) => {
+            console.log('=============================================================================================');
+            console.log('--> REQUEST ' + req.url);
+            console.log('=============================================================================================');
+
+            // var username = req.vhost[0]; // username is the "*"
+
+            // pretend request was for /{username}/* for file serving
+            // req.originalUrl = req.url
+            // req.url = '/' + username + req.url
+
+            next();
+        });
+
         webviewApp.use('/webview', serveStatic(path.join(__dirname, '../../../src/main/browser/webview/pre')));
         const webviewExternalEndpoint = this.webviewExternalEndpoint();
         console.log(`Configuring to accept webviews on '${webviewExternalEndpoint}' hostname.`);
