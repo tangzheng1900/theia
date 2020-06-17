@@ -228,6 +228,10 @@ export class PluginViewRegistry implements FrontendApplicationContribution {
             commandId: toggleCommandId,
             label: options.label
         }));
+        toDispose.push(this.quickView.registerItem({
+            label: options.label,
+            open: () => this.commands.executeCommand(toggleCommandId)
+        }));
         toDispose.push(Disposable.create(async () => {
             const widget = await this.getPluginViewContainer(id);
             if (widget) {
