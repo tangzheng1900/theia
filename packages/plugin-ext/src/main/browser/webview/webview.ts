@@ -365,13 +365,23 @@ export class WebviewWidget extends BaseWidget implements StatefulWidget {
     }
 
     protected preprocessHtml(value: string): string {
-        return value
+        // replace <head><meta http-equiv="Content-Security-Policy" /></head>
+        let html = value
+            .replace(/<\s*meta([^>]+?(?=Content-Security-Policy)[^>]+)\/?>/gsm, (_, group) => {
+                return `<!-- meta ${group} -->`;
+            });
+
+        // replace vscode-resource -> ...
+        // replace theia-resource -> ...
+        html = html
             .replace(/(["'])(?:vscode|theia)-resource:(\/\/([^\s\/'"]+?)(?=\/))?([^\s'"]+?)(["'])/gi, (_, startQuote, _1, scheme, path, endQuote) => {
                 if (scheme) {
                     return `${startQuote}${this.externalEndpoint}/theia-resource/${scheme}${path}${endQuote}`;
                 }
                 return `${startQuote}${this.externalEndpoint}/theia-resource/file${path}${endQuote}`;
             });
+
+        return html;
     }
 
     protected onActivateRequest(msg: Message): void {
