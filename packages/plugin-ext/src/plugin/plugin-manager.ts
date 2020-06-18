@@ -337,7 +337,8 @@ export class PluginManagerExtImpl implements PluginManagerExt, PluginManager {
         const globalStoragePath = join(configStorage.hostGlobalStoragePath, plugin.model.id);
 
         const pluginContext: theia.PluginContext = {
-            extensionPath: plugin.pluginFolder.replace(/\/$/, ""),
+            // extensionPath: plugin.pluginFolder.replace(/\/$/, ""),
+            extensionPath: plugin.pluginFolder,
             globalState: new Memento(plugin.model.id, true, this.storageProxy),
             workspaceState: new Memento(plugin.model.id, false, this.storageProxy),
             subscriptions: subscriptions,
