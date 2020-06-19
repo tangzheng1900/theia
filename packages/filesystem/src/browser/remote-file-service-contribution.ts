@@ -1,5 +1,5 @@
 /********************************************************************************
- * Copyright (C) 2018 TypeFox and others.
+ * Copyright (C) 2020 TypeFox and others.
  *
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License v. 2.0 which is available at
@@ -14,13 +14,18 @@
  * SPDX-License-Identifier: EPL-2.0 OR GPL-2.0 WITH Classpath-exception-2.0
  ********************************************************************************/
 
-declare module 'drivelist' {
+import { inject, injectable } from 'inversify';
+import { FileServiceContribution, FileService } from './file-service';
+import { RemoteFileSystemProvider } from '../common/remote-file-system-provider';
 
-    interface Drivelist {
-        list(cb: (error: Error, drives: ({ readonly mountpoints: { readonly path: string }[] })[]) => void): void;
+@injectable()
+export class RemoteFileServiceContribution implements FileServiceContribution {
+
+    @inject(RemoteFileSystemProvider)
+    protected readonly provider: RemoteFileSystemProvider;
+
+    registerProviders(service: FileService): void {
+        service.registerProvider('file', this.provider);
     }
 
-    const drivelist: Drivelist;
-
-    export = drivelist;
 }

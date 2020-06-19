@@ -1,6 +1,7 @@
 {
   "rules": {
     "@typescript-eslint/await-thenable": "warn",
-    "no-return-await": "warn"
+    "no-return-await": "warn",
+    "deprecation/deprecation": "warn"
   }
 }

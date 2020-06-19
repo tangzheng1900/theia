@@ -33,7 +33,7 @@ export class UntitledResourceResolver implements ResourceResolver {
     protected readonly resources = new Map<string, UntitledResource>();
 
     async resolve(uri: URI): Promise<UntitledResource> {
-        if (uri.scheme !== Schemes.UNTITLED) {
+        if (uri.scheme !== Schemes.untitled) {
             throw new Error('The given uri is not untitled file uri: ' + uri);
         } else {
             const untitledResource = this.resources.get(uri.toString());
@@ -45,7 +45,7 @@ export class UntitledResourceResolver implements ResourceResolver {
         }
     }
 
-    async  createUntitledResource(fileResourceResolver: FileResourceResolver, content?: string, language?: string, uri?: URI): Promise<UntitledResource> {
+    async createUntitledResource(fileResourceResolver: FileResourceResolver, content?: string, language?: string, uri?: URI): Promise<UntitledResource> {
         let extension;
         if (language) {
             for (const lang of monaco.languages.getLanguages()) {
@@ -57,7 +57,7 @@ export class UntitledResourceResolver implements ResourceResolver {
                 }
             }
         }
-        return new UntitledResource(this.resources, uri ? uri : new URI().withScheme(Schemes.UNTITLED).withPath(`/Untitled-${index++}${extension ? extension : ''}`),
+        return new UntitledResource(this.resources, uri ? uri : new URI().withScheme(Schemes.untitled).withPath(`/Untitled-${index++}${extension ? extension : ''}`),
             fileResourceResolver, content);
     }
 }
@@ -138,5 +138,5 @@ export function createUntitledURI(language?: string): URI {
             }
         }
     }
-    return new URI().withScheme(Schemes.UNTITLED).withPath(`/Untitled-${index++}${extension ? extension : ''}`);
+    return new URI().withScheme(Schemes.untitled).withPath(`/Untitled-${index++}${extension ? extension : ''}`);
 }

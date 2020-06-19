@@ -17,16 +17,16 @@
 import { injectable, inject } from 'inversify';
 import URI from '@theia/core/lib/common/uri';
 import { ConfirmDialog, ApplicationShell, SaveableWidget, NavigatableWidget } from '@theia/core/lib/browser';
-import { FileSystem } from '@theia/filesystem/lib/common';
 import { UriCommandHandler } from '@theia/core/lib/common/uri-command-handler';
 import { WorkspaceService } from './workspace-service';
 import { WorkspaceUtils } from './workspace-utils';
+import { FileService } from '@theia/filesystem/lib/browser/file-service';
 
 @injectable()
 export class WorkspaceDeleteHandler implements UriCommandHandler<URI[]> {
 
-    @inject(FileSystem)
-    protected readonly fileSystem: FileSystem;
+    @inject(FileService)
+    protected readonly fileService: FileService;
 
     @inject(ApplicationShell)
     protected readonly shell: ApplicationShell;
@@ -137,7 +137,7 @@ export class WorkspaceDeleteHandler implements UriCommandHandler<URI[]> {
         try {
             await Promise.all([
                 this.closeWithoutSaving(uri),
-                this.fileSystem.delete(uri.toString())
+                this.fileService.delete(uri)
             ]);
         } catch (e) {
             console.error(e);

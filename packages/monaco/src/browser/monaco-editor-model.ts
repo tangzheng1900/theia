@@ -111,7 +111,7 @@ export class MonacoEditorModel implements ITextEditorModel, TextEditorDocument {
     }
 
     async saveWithEncoding(encoding: string): Promise<void> {
-        return this.scheduleSave(TextDocumentSaveReason.Manual, this.cancelSave(), encoding)
+        return this.scheduleSave(TextDocumentSaveReason.Manual, this.cancelSave())
             .then(() => { this.preferredEncoding = encoding; });
     }
 
@@ -346,8 +346,8 @@ export class MonacoEditorModel implements ITextEditorModel, TextEditorDocument {
         return this.saveCancellationTokenSource.token;
     }
 
-    protected scheduleSave(reason: TextDocumentSaveReason, token: CancellationToken = this.cancelSave(), overwriteEncoding?: string): Promise<void> {
-        return this.run(() => this.doSave(reason, token, overwriteEncoding));
+    protected scheduleSave(reason: TextDocumentSaveReason, token: CancellationToken = this.cancelSave()): Promise<void> {
+        return this.run(() => this.doSave(reason, token));
     }
 
     protected ignoreContentChanges = false;
@@ -400,7 +400,7 @@ export class MonacoEditorModel implements ITextEditorModel, TextEditorDocument {
         }
     }
 
-    protected async doSave(reason: TextDocumentSaveReason, token: CancellationToken, overwriteEncoding?: string): Promise<void> {
+    protected async doSave(reason: TextDocumentSaveReason, token: CancellationToken): Promise<void> {
         if (token.isCancellationRequested || !this.resource.saveContents) {
             return;
         }
@@ -411,7 +411,7 @@ export class MonacoEditorModel implements ITextEditorModel, TextEditorDocument {
         }
 
         const changes = [...this.contentChanges];
-        if (changes.length === 0 && overwriteEncoding === undefined) {
+        if (changes.length === 0) {
             return;
         }
 
@@ -419,7 +419,7 @@ export class MonacoEditorModel implements ITextEditorModel, TextEditorDocument {
         try {
             const encoding = this.getEncoding();
             const version = this.resourceVersion;
-            await Resource.save(this.resource, { changes, content, options: { encoding, overwriteEncoding, version } }, token);
+            await Resource.save(this.resource, { changes, content, options: { encoding, version } }, token);
             this.contentChanges.splice(0, changes.length);
             this.resourceVersion = this.resource.version;
             this.setValid(true);

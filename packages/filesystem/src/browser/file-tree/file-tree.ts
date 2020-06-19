@@ -17,14 +17,20 @@
 import { injectable, inject } from 'inversify';
 import URI from '@theia/core/lib/common/uri';
 import { TreeNode, CompositeTreeNode, SelectableTreeNode, ExpandableTreeNode, TreeImpl } from '@theia/core/lib/browser';
-import { FileSystem, FileStat } from '../../common';
+import { FileStat } from '../../common/files';
 import { UriSelection } from '@theia/core/lib/common/selection';
+import { MessageService } from '@theia/core/lib/common/message-service';
 import { FileSelection } from '../file-selection';
+import { FileService } from '../file-service';
 
 @injectable()
 export class FileTree extends TreeImpl {
 
-    @inject(FileSystem) protected readonly fileSystem: FileSystem;
+    @inject(FileService)
+    protected readonly fileService: FileService;
+
+    @inject(MessageService)
+    protected readonly messagingService: MessageService;
 
     async resolveChildren(parent: CompositeTreeNode): Promise<TreeNode[]> {
         if (FileStatNode.is(parent)) {
@@ -37,14 +43,15 @@ export class FileTree extends TreeImpl {
         return super.resolveChildren(parent);
     }
 
-    protected resolveFileStat(node: FileStatNode): Promise<FileStat | undefined> {
-        return this.fileSystem.getFileStat(node.fileStat.uri).then(fileStat => {
-            if (fileStat) {
-                node.fileStat = fileStat;
-                return fileStat;
-            }
+    protected async resolveFileStat(node: FileStatNode): Promise<FileStat | undefined> {
+        try {
+            const fileStat = await this.fileService.resolve(node.uri, { resolveSingleChildDescendants: true, resolveMetadata: false });
+            node.fileStat = fileStat;
+            return fileStat;
+        } catch (e) {
+            this.messagingService.error(e.message);
             return undefined;
-        });
+        }
     }
 
     protected async toNodes(fileStat: FileStat, parent: CompositeTreeNode): Promise<TreeNode[]> {
@@ -58,7 +65,7 @@ export class FileTree extends TreeImpl {
     }
 
     protected toNode(fileStat: FileStat, parent: CompositeTreeNode): FileNode | DirNode {
-        const uri = new URI(fileStat.uri);
+        const uri = fileStat.resource;
         const id = this.toNodeId(uri, parent);
         const node = this.getNode(id);
         if (fileStat.isDirectory) {
@@ -97,7 +104,7 @@ export namespace FileStatNode {
 
     export function getUri(node: TreeNode | undefined): string | undefined {
         if (is(node)) {
-            return node.fileStat.uri;
+            return node.fileStat.resource.toString();
         }
         return undefined;
     }
@@ -140,8 +147,8 @@ export namespace DirNode {
     }
 
     export function createRoot(fileStat: FileStat): DirNode {
-        const uri = new URI(fileStat.uri);
-        const id = fileStat.uri;
+        const uri = fileStat.resource;
+        const id = uri.toString();
         return {
             id, uri, fileStat,
             visible: true,

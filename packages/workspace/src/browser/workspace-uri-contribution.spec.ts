@@ -23,25 +23,43 @@ import { Container } from 'inversify';
 import { Signal } from '@phosphor/signaling';
 import { Event } from '@theia/core/lib/common/event';
 import { ApplicationShell, WidgetManager } from '@theia/core/lib/browser';
-import { FileStat, FileSystem } from '@theia/filesystem/lib/common/filesystem';
-import { MockFilesystem } from '@theia/filesystem/lib/common/test';
 import { DefaultUriLabelProviderContribution } from '@theia/core/lib/browser/label-provider';
 import { WorkspaceUriLabelProviderContribution } from './workspace-uri-contribution';
 import URI from '@theia/core/lib/common/uri';
 import { WorkspaceVariableContribution } from './workspace-variable-contribution';
 import { WorkspaceService } from './workspace-service';
+import { FileService } from '@theia/filesystem/lib/browser/file-service';
+import { FileStat } from '@theia/filesystem/lib/common/files';
 
 after(() => disableJSDOM());
+
+const mockFolder: (uri: string) => FileStat = uri => {
+    const resource = new URI(uri);
+    return {
+        resource,
+        name: resource.path.base,
+        isDirectory: true,
+        isFile: false,
+        isSymbolicLink: false
+    };
+};
+
+const mockFile: (uri: string) => FileStat = uri => {
+    const resource = new URI(uri);
+    return {
+        resource,
+        name: resource.path.base,
+        isDirectory: false,
+        isFile: true,
+        isSymbolicLink: false
+    };
+};
 
 let container: Container;
 let labelProvider: WorkspaceUriLabelProviderContribution;
 let roots: FileStat[];
 beforeEach(() => {
-    roots = [{
-        uri: 'file:///workspace',
-        lastModification: 0,
-        isDirectory: true
-    }];
+    roots = [mockFolder('file:///workspace')];
 
     container = new Container();
     container.bind(ApplicationShell).toConstantValue({
@@ -58,7 +76,7 @@ beforeEach(() => {
     container.bind(WorkspaceService).toConstantValue(workspaceService);
     container.bind(WorkspaceVariableContribution).toSelf().inSingletonScope();
     container.bind(WorkspaceUriLabelProviderContribution).toSelf().inSingletonScope();
-    container.bind(FileSystem).to(MockFilesystem).inSingletonScope();
+    container.bind(FileService).toConstantValue({} as FileService);
     labelProvider = container.get(WorkspaceUriLabelProviderContribution);
 });
 
@@ -84,51 +102,31 @@ describe('WorkspaceUriLabelProviderContribution class', () => {
 
         it('should return 10 if the passed in argument is a FileStat or URI with the "file" scheme', () => {
             expect(labelProvider.canHandle(new URI('file:///home/settings.json'))).eq(10);
-            expect(labelProvider.canHandle(<FileStat>{
-                uri: 'file:///home/settings.json',
-                lastModification: 0,
-                isDirectory: false
-            })).eq(10);
+            expect(labelProvider.canHandle(mockFile('file:///home/settings.json'))).eq(10);
         });
     });
 
     describe('getIcon()', () => {
         it('should return folder icon from the FileStat of a folder', async () => {
-            expect(labelProvider.getIcon(<FileStat>{
-                uri: 'file:///home/',
-                lastModification: 0,
-                isDirectory: true
-            })).eq(labelProvider.defaultFolderIcon);
+            expect(labelProvider.getIcon(mockFolder('file:///home/'))).eq(labelProvider.defaultFolderIcon);
         });
 
         it('should return file icon from a non-folder FileStat', async () => {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             stubs.push(sinon.stub(DefaultUriLabelProviderContribution.prototype, <any>'getFileIcon').returns(undefined));
-            expect(labelProvider.getIcon(<FileStat>{
-                uri: 'file:///home/test',
-                lastModification: 0,
-                isDirectory: false
-            })).eq(labelProvider.defaultFileIcon);
+            expect(labelProvider.getIcon(mockFile('file:///home/test'))).eq(labelProvider.defaultFileIcon);
         });
 
         it('should return folder icon from a folder URI', async () => {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             stubs.push(sinon.stub(DefaultUriLabelProviderContribution.prototype, <any>'getFileIcon').returns(undefined));
-            expect(labelProvider.getIcon(<FileStat>{
-                uri: 'file:///home/test',
-                lastModification: 0,
-                isDirectory: true
-            })).eq(labelProvider.defaultFolderIcon);
+            expect(labelProvider.getIcon(mockFolder('file:///home/test'))).eq(labelProvider.defaultFolderIcon);
         });
 
         it('should return file icon from a file URI', async () => {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             stubs.push(sinon.stub(DefaultUriLabelProviderContribution.prototype, <any>'getFileIcon').returns(undefined));
-            expect(labelProvider.getIcon(<FileStat>{
-                uri: 'file:///home/test',
-                lastModification: 0,
-                isDirectory: false
-            })).eq(labelProvider.defaultFileIcon);
+            expect(labelProvider.getIcon(mockFile('file:///home/test'))).eq(labelProvider.defaultFileIcon);
         });
 
         it('should return what getFileIcon() returns from a URI or non-folder FileStat, if getFileIcon() does not return null or undefined', async () => {
@@ -136,11 +134,7 @@ describe('WorkspaceUriLabelProviderContribution class', () => {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             stubs.push(sinon.stub(DefaultUriLabelProviderContribution.prototype, <any>'getFileIcon').returns(ret));
             expect(labelProvider.getIcon(new URI('file:///home/test'))).eq(ret);
-            expect(labelProvider.getIcon(<FileStat>{
-                uri: 'file:///home/test',
-                lastModification: 0,
-                isDirectory: false
-            })).eq(ret);
+            expect(labelProvider.getIcon(mockFile('file:///home/test'))).eq(ret);
         });
     });
 
@@ -152,11 +146,7 @@ describe('WorkspaceUriLabelProviderContribution class', () => {
         });
 
         it('should return the display name of a file from its FileStat', () => {
-            const file: FileStat = {
-                uri: 'file:///workspace-2/jacques.doc',
-                lastModification: 0,
-                isDirectory: false
-            };
+            const file: FileStat = mockFile('file:///workspace-2/jacques.doc');
             const name = labelProvider.getName(file);
             expect(name).eq('jacques.doc');
         });
@@ -170,11 +160,7 @@ describe('WorkspaceUriLabelProviderContribution class', () => {
         });
 
         it('should return the path of a file relative to the workspace from the file\'s FileStat if the file is in the workspace', () => {
-            const file: FileStat = {
-                uri: 'file:///workspace/some/very-long/path.js',
-                lastModification: 0,
-                isDirectory: false
-            };
+            const file: FileStat = mockFile('file:///workspace/some/very-long/path.js');
             const longName = labelProvider.getLongName(file);
             expect(longName).eq('some/very-long/path.js');
         });
@@ -186,11 +172,7 @@ describe('WorkspaceUriLabelProviderContribution class', () => {
         });
 
         it('should return the absolute path of a file from the file\'s FileStat if the file is not in the workspace', () => {
-            const file: FileStat = {
-                uri: 'file:///tmp/prout.txt',
-                lastModification: 0,
-                isDirectory: false
-            };
+            const file: FileStat = mockFile('file:///tmp/prout.txt');
             const longName = labelProvider.getLongName(file);
             expect(longName).eq('/tmp/prout.txt');
         });

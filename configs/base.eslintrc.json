@@ -11,7 +11,8 @@
     "@typescript-eslint",
     "@typescript-eslint/tslint",
     "import",
-    "no-null"
+    "no-null",
+    "deprecation"
   ],
   "env": {
     "browser": true,
@@ -21,5 +22,8 @@
   "ignorePatterns": [
     "node_modules",
     "*.d.ts"
-  ]
+  ],
+  "rules": {
+    "deprecation/deprecation": "off"
+  }
 }

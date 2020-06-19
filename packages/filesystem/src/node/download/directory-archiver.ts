@@ -18,13 +18,13 @@ import { injectable, inject } from 'inversify';
 import * as fs from 'fs-extra';
 import { pack } from 'tar-fs';
 import URI from '@theia/core/lib/common/uri';
-import { FileSystem } from '../../common/filesystem';
+import { FileService } from '../../browser/file-service';
 
 @injectable()
 export class DirectoryArchiver {
 
-    @inject(FileSystem)
-    protected readonly fileSystem: FileSystem;
+    @inject(FileService)
+    protected readonly fileService: FileService;
 
     async archive(inputPath: string, outputPath: string, entries?: string[]): Promise<void> {
         return new Promise<void>(async (resolve, reject) => {
@@ -98,10 +98,7 @@ export class DirectoryArchiver {
     }
 
     protected async isDir(uri: URI): Promise<boolean> {
-        const stat = await this.fileSystem.getFileStat(uri.toString());
-        if (!stat) {
-            throw new Error(`File does not exist under: ${uri}.`);
-        }
+        const stat = await this.fileService.resolve(uri);
         return stat.isDirectory;
     }
 

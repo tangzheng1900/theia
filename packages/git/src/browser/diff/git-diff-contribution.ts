@@ -24,7 +24,6 @@ import { open, OpenerService } from '@theia/core/lib/browser';
 import { NavigatorContextMenu, FileNavigatorContribution } from '@theia/navigator/lib/browser/navigator-contribution';
 import { UriCommandHandler } from '@theia/core/lib/common/uri-command-handler';
 import { GitQuickOpenService } from '../git-quick-open-service';
-import { FileSystem } from '@theia/filesystem/lib/common';
 import { DiffUris } from '@theia/core/lib/browser/diff-uris';
 import URI from '@theia/core/lib/common/uri';
 import { GIT_RESOURCE_SCHEME } from '../git-resource';
@@ -32,6 +31,7 @@ import { Git, Repository } from '../../common';
 import { WorkspaceRootUriAwareCommandHandler } from '@theia/workspace/lib/browser/workspace-commands';
 import { WorkspaceService } from '@theia/workspace/lib/browser';
 import { TabBarToolbarContribution, TabBarToolbarRegistry } from '@theia/core/lib/browser/shell/tab-bar-toolbar';
+import { FileService } from '@theia/filesystem/lib/browser/file-service';
 
 export namespace GitDiffCommands {
     export const OPEN_FILE_DIFF: Command = {
@@ -62,7 +62,7 @@ export class GitDiffContribution extends AbstractViewContribution<GitDiffWidget>
         @inject(WidgetManager) protected readonly widgetManager: WidgetManager,
         @inject(FrontendApplication) protected readonly app: FrontendApplication,
         @inject(GitQuickOpenService) protected readonly quickOpenService: GitQuickOpenService,
-        @inject(FileSystem) protected readonly fileSystem: FileSystem,
+        @inject(FileService) protected readonly fileService: FileService,
         @inject(OpenerService) protected openerService: OpenerService,
         @inject(MessageService) protected readonly notifications: MessageService,
         @inject(ScmService) protected readonly scmService: ScmService
@@ -91,7 +91,7 @@ export class GitDiffContribution extends AbstractViewContribution<GitDiffWidget>
                 await this.quickOpenService.chooseTagsAndBranches(
                     async (fromRevision, toRevision) => {
                         const uri = fileUri.toString();
-                        const fileStat = await this.fileSystem.getFileStat(uri);
+                        const fileStat = await this.fileService.resolve(fileUri);
                         const options: Git.Options.Diff = {
                             uri,
                             range: {

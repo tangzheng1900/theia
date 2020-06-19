@@ -82,21 +82,6 @@ export interface SerializedDocumentFilter {
     pattern?: theia.GlobPattern;
 }
 
-export interface FileWatcherSubscriberOptions {
-    globPattern: theia.GlobPattern;
-    ignoreCreateEvents?: boolean;
-    ignoreChangeEvents?: boolean;
-    ignoreDeleteEvents?: boolean;
-}
-
-export interface FileChangeEvent {
-    subscriberId: string,
-    uri: UriComponents,
-    type: FileChangeEventType
-}
-
-export type FileChangeEventType = 'created' | 'updated' | 'deleted';
-
 export enum CompletionTriggerKind {
     Invoke = 0,
     TriggerCharacter = 1,
@@ -538,16 +523,4 @@ export interface CallHierarchyIncomingCall {
 export interface CallHierarchyOutgoingCall {
     to: CallHierarchyItem;
     fromRanges: Range[];
-}
-
-export interface CreateFilesEventDTO {
-    files: UriComponents[]
-}
-
-export interface RenameFilesEventDTO {
-    files: { oldUri: UriComponents, newUri: UriComponents }[]
-}
-
-export interface DeleteFilesEventDTO {
-    files: UriComponents[]
 }

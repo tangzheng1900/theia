@@ -20,6 +20,9 @@ import { EnvVariablesServer } from '@theia/core/lib/common/env-variables';
 export const THEIA_EXT = 'theia-workspace';
 export const VSCODE_EXT = 'code-workspace';
 
+/**
+ * @deprecated since 1.4.0 - because of https://github.com/eclipse-theia/theia/wiki/Coding-Guidelines#di-function-export, use `WorksapceService.getUntitledWorkspace` instead
+ */
 export async function getTemporaryWorkspaceFileUri(envVariableServer: EnvVariablesServer): Promise<URI> {
     const configDirUri = await envVariableServer.getConfigDirUri();
     return new URI(configDirUri).resolve(`Untitled.${THEIA_EXT}`);

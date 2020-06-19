@@ -15,8 +15,9 @@
  ********************************************************************************/
 
 import { injectable, inject } from 'inversify';
-import { FileSystem, FileStat } from '@theia/filesystem/lib/common';
+import { FileStat } from '@theia/filesystem/lib/common/files';
 import * as path from 'path';
+import * as fs from 'fs-extra';
 import { readdir, remove } from 'fs-extra';
 import * as crypto from 'crypto';
 import URI from '@theia/core/lib/common/uri';
@@ -37,9 +38,6 @@ export class PluginPathsServiceImpl implements PluginPathsService {
     @inject(ILogger)
     protected readonly logger: ILogger;
 
-    @inject(FileSystem)
-    protected readonly fileSystem: FileSystem;
-
     @inject(EnvVariablesServer)
     protected readonly envServer: EnvVariablesServer;
 
@@ -54,7 +52,7 @@ export class PluginPathsServiceImpl implements PluginPathsService {
         }
 
         const pluginDirPath = path.join(parentLogsDir, this.generateTimeFolderName(), 'host');
-        await this.fileSystem.createFolder(pluginDirPath);
+        await fs.mkdirs(pluginDirPath);
         // no `await` as We should never wait for the cleanup
         this.cleanupOldLogs(parentLogsDir);
         return new URI(pluginDirPath).path.toString();
@@ -71,15 +69,11 @@ export class PluginPathsServiceImpl implements PluginPathsService {
             return undefined;
         }
 
-        if (!await this.fileSystem.exists(parentStorageDir)) {
-            await this.fileSystem.createFolder(parentStorageDir);
-        }
+        await fs.mkdirs(parentStorageDir);
 
         const storageDirName = await this.buildWorkspaceId(workspace, roots);
         const storageDirPath = path.join(parentStorageDir, storageDirName);
-        if (!await this.fileSystem.exists(storageDirPath)) {
-            await this.fileSystem.createFolder(storageDirPath);
-        }
+        await fs.mkdirs(storageDirPath);
 
         return new URI(storageDirPath).path.toString();
     }
@@ -87,13 +81,13 @@ export class PluginPathsServiceImpl implements PluginPathsService {
     protected async buildWorkspaceId(workspace: FileStat, roots: FileStat[]): Promise<string> {
         const untitledWorkspace = await getTemporaryWorkspaceFileUri(this.envServer);
 
-        if (untitledWorkspace.toString() === workspace.uri) {
+        if (untitledWorkspace.toString() === workspace.resource.toString()) {
             // if workspace is temporary
             // then let create a storage path for each set of workspace roots
-            const rootsStr = roots.map(root => root.uri).sort().join(',');
+            const rootsStr = roots.map(root => root.resource.toString()).sort().join(',');
             return crypto.createHash('md5').update(rootsStr).digest('hex');
         } else {
-            const uri = new URI(workspace.uri);
+            const uri = workspace.resource;
             let displayName = uri.displayName;
 
             if ((!workspace || !workspace.isDirectory) && (displayName.endsWith(`.${THEIA_EXT}`) || displayName.endsWith(`.${VSCODE_EXT}`))) {

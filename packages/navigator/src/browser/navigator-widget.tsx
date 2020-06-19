@@ -28,7 +28,6 @@ import { WorkspaceService, WorkspaceCommands } from '@theia/workspace/lib/browse
 import { ApplicationShell } from '@theia/core/lib/browser/shell/application-shell';
 import { WorkspaceNode, WorkspaceRootNode } from './navigator-tree';
 import { FileNavigatorModel } from './navigator-model';
-import { FileSystem } from '@theia/filesystem/lib/common/filesystem';
 import { isOSX, environment } from '@theia/core';
 import * as React from 'react';
 import { NavigatorContextKeyService } from './navigator-context-key-service';
@@ -59,8 +58,7 @@ export class FileNavigatorWidget extends FileTreeWidget {
         @inject(CommandService) protected readonly commandService: CommandService,
         @inject(SelectionService) protected readonly selectionService: SelectionService,
         @inject(WorkspaceService) protected readonly workspaceService: WorkspaceService,
-        @inject(ApplicationShell) protected readonly shell: ApplicationShell,
-        @inject(FileSystem) protected readonly fileSystem: FileSystem
+        @inject(ApplicationShell) protected readonly shell: ApplicationShell
     ) {
         super(props, model, contextMenuRenderer);
         this.id = FILE_NAVIGATOR_ID;

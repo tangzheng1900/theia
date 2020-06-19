@@ -24,12 +24,13 @@ import {
     NavigatableWidget, NavigatableWidgetOptions,
     Saveable, WidgetManager, StatefulWidget, FrontendApplication, ExpandableTreeNode, waitForClosed
 } from '@theia/core/lib/browser';
-import { FileSystemWatcher, FileChangeEvent, FileMoveEvent, FileChangeType } from './filesystem-watcher';
 import { MimeService } from '@theia/core/lib/browser/mime-service';
 import { TreeWidgetSelection } from '@theia/core/lib/browser/tree/tree-widget-selection';
 import { FileSystemPreferences } from './filesystem-preferences';
 import { FileSelection } from './file-selection';
 import { FileUploadService } from './file-upload-service';
+import { FileService, UserFileOperationEvent } from './file-service';
+import { FileChangesEvent, FileChangeType, FileOperation } from '../common/files';
 
 export namespace FileSystemCommands {
 
@@ -55,9 +56,6 @@ export class FileSystemFrontendContribution implements FrontendApplicationContri
     @inject(WidgetManager)
     protected readonly widgetManager: WidgetManager;
 
-    @inject(FileSystemWatcher)
-    protected readonly fileSystemWatcher: FileSystemWatcher;
-
     @inject(MimeService)
     protected readonly mimeService: MimeService;
 
@@ -70,11 +68,14 @@ export class FileSystemFrontendContribution implements FrontendApplicationContri
     @inject(FileUploadService)
     protected readonly uploadService: FileUploadService;
 
+    @inject(FileService)
+    protected readonly fileService: FileService;
+
     initialize(): void {
-        this.fileSystemWatcher.onFilesChanged(event => this.run(() => this.updateWidgets(event)));
-        this.fileSystemWatcher.onWillMove(event => event.waitUntil(this.runEach((uri, widget) => this.pushMove(uri, widget, event))));
-        this.fileSystemWatcher.onDidFailMove(event => event.waitUntil(this.runEach((uri, widget) => this.revertMove(uri, widget, event))));
-        this.fileSystemWatcher.onDidMove(event => event.waitUntil(this.runEach((uri, widget) => this.applyMove(uri, widget, event))));
+        this.fileService.onDidFilesChange(event => this.run(() => this.updateWidgets(event)));
+        this.fileService.onWillRunUserOperation(event => event.waitUntil(this.runEach((uri, widget) => this.pushMove(uri, widget, event))));
+        this.fileService.onDidFailUserOperation(event => event.waitUntil(this.runEach((uri, widget) => this.revertMove(uri, widget, event))));
+        this.fileService.onDidRunUserOperation(event => event.waitUntil(this.runEach((uri, widget) => this.applyMove(uri, widget, event))));
     }
 
     onStart?(app: FrontendApplication): MaybePromise<void> {
@@ -102,7 +103,7 @@ export class FileSystemFrontendContribution implements FrontendApplicationContri
     protected async upload(selection: FileSelection): Promise<void> {
         try {
             const source = TreeWidgetSelection.getSource(this.selectionService.selection);
-            await this.uploadService.upload(selection.fileStat.uri);
+            await this.uploadService.upload(selection.fileStat.resource);
             if (ExpandableTreeNode.is(selection) && source) {
                 await source.model.expandNode(selection);
             }
@@ -160,7 +161,7 @@ export class FileSystemFrontendContribution implements FrontendApplicationContri
         }
     }
 
-    protected async pushMove(resourceUri: URI, widget: NavigatableWidget, event: FileMoveEvent): Promise<void> {
+    protected async pushMove(resourceUri: URI, widget: NavigatableWidget, event: UserFileOperationEvent): Promise<void> {
         const newResourceUri = this.createMoveToUri(resourceUri, widget, event);
         if (!newResourceUri) {
             return;
@@ -181,7 +182,7 @@ export class FileSystemFrontendContribution implements FrontendApplicationContri
         this.moveSnapshots.set(newResourceUri.toString(), snapshot);
     }
 
-    protected async revertMove(resourceUri: URI, widget: NavigatableWidget, event: FileMoveEvent): Promise<void> {
+    protected async revertMove(resourceUri: URI, widget: NavigatableWidget, event: UserFileOperationEvent): Promise<void> {
         const newResourceUri = this.createMoveToUri(resourceUri, widget, event);
         if (!newResourceUri) {
             return;
@@ -190,7 +191,7 @@ export class FileSystemFrontendContribution implements FrontendApplicationContri
         this.applyMoveSnapshot(widget, snapshot);
     }
 
-    protected async applyMove(resourceUri: URI, widget: NavigatableWidget, event: FileMoveEvent): Promise<void> {
+    protected async applyMove(resourceUri: URI, widget: NavigatableWidget, event: UserFileOperationEvent): Promise<void> {
         const newResourceUri = this.createMoveToUri(resourceUri, widget, event);
         if (!newResourceUri) {
             return;
@@ -225,20 +226,21 @@ export class FileSystemFrontendContribution implements FrontendApplicationContri
         pending.push(this.shell.closeWidget(widget.id, { save: false }));
         await Promise.all(pending);
     }
-    protected createMoveToUri(resourceUri: URI, widget: NavigatableWidget, event: FileMoveEvent): URI | undefined {
-        const path = event.sourceUri.relative(resourceUri);
-        const targetUri = path && event.targetUri.resolve(path);
+
+    protected createMoveToUri(resourceUri: URI, widget: NavigatableWidget, event: UserFileOperationEvent): URI | undefined {
+        if (event.operation !== FileOperation.MOVE) {
+            return undefined;
+        }
+        const path = event.source?.relative(resourceUri);
+        const targetUri = path && event.target.resolve(path);
         return targetUri && widget.createMoveToUri(targetUri);
     }
 
     protected readonly deletedSuffix = ' (deleted from disk)';
-    protected async updateWidgets(event: FileChangeEvent): Promise<void> {
-        const relevantEvent = event.filter(({ type }) => type !== FileChangeType.UPDATED);
-        if (relevantEvent.length) {
-            return this.doUpdateWidgets(relevantEvent);
+    protected async updateWidgets(event: FileChangesEvent): Promise<void> {
+        if (!event.gotDeleted() && !event.gotAdded()) {
+            return;
         }
-    }
-    protected async doUpdateWidgets(event: FileChangeEvent): Promise<void> {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const pending: Promise<any>[] = [];
 
@@ -258,13 +260,13 @@ export class FileSystemFrontendContribution implements FrontendApplicationContri
 
         await Promise.all(pending);
     }
-    protected updateWidget(uri: URI, widget: NavigatableWidget, event: FileChangeEvent, { dirty, toClose }: {
+    protected updateWidget(uri: URI, widget: NavigatableWidget, event: FileChangesEvent, { dirty, toClose }: {
         dirty: Set<string>;
         toClose: Map<string, NavigatableWidget[]>
     }): void {
         const label = widget.title.label;
         const deleted = label.endsWith(this.deletedSuffix);
-        if (FileChangeEvent.isDeleted(event, uri)) {
+        if (event.contains(uri, FileChangeType.DELETED)) {
             const uriString = uri.toString();
             if (Saveable.isDirty(widget)) {
                 if (!deleted) {
@@ -275,7 +277,7 @@ export class FileSystemFrontendContribution implements FrontendApplicationContri
             const widgets = toClose.get(uriString) || [];
             widgets.push(widget);
             toClose.set(uriString, widgets);
-        } else if (FileChangeEvent.isAdded(event, uri)) {
+        } else if (event.contains(uri, FileChangeType.ADDED)) {
             if (deleted) {
                 widget.title.label = widget.title.label.substr(0, label.length - this.deletedSuffix.length);
             }

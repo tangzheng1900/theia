@@ -18,9 +18,11 @@ import { injectable, inject } from 'inversify';
 import URI from '@theia/core/lib/common/uri';
 import { MaybeArray } from '@theia/core/lib/common';
 import { LabelProvider } from '@theia/core/lib/browser';
-import { FileSystem, FileStat } from '../../common';
+import { FileStat } from '../../common/files';
 import { DirNode } from '../file-tree';
 import { OpenFileDialogFactory, OpenFileDialogProps, SaveFileDialogFactory, SaveFileDialogProps } from './file-dialog';
+import { FileService } from '../file-service';
+import { EnvVariablesServer } from '@theia/core/lib/common/env-variables';
 
 export const FileDialogService = Symbol('FileDialogService');
 export interface FileDialogService {
@@ -36,7 +38,12 @@ export interface FileDialogService {
 @injectable()
 export class DefaultFileDialogService {
 
-    @inject(FileSystem) protected readonly fileSystem: FileSystem;
+    @inject(EnvVariablesServer)
+    protected readonly environments: EnvVariablesServer;
+
+    @inject(FileService)
+    protected readonly fileService: FileService;
+
     @inject(OpenFileDialogFactory) protected readonly openFileDialogFactory: OpenFileDialogFactory;
     @inject(LabelProvider) protected readonly labelProvider: LabelProvider;
     @inject(SaveFileDialogFactory) protected readonly saveFileDialogFactory: SaveFileDialogFactory;
@@ -72,11 +79,14 @@ export class DefaultFileDialogService {
     }
 
     protected async getRootNode(folderToOpen?: FileStat): Promise<DirNode | undefined> {
-        const folder = folderToOpen || await this.fileSystem.getCurrentUserHome();
+        const folder = folderToOpen || {
+            resource: new URI(await this.environments.getHomeDirUri()),
+            isDirectory: true
+        };
         if (folder) {
-            const folderUri = new URI(folder.uri);
+            const folderUri = folder.resource;
             const rootUri = folder.isDirectory ? folderUri : folderUri.parent;
-            const rootStat = await this.fileSystem.getFileStat(rootUri.toString());
+            const rootStat = await this.fileService.resolve(rootUri, { resolveSingleChildDescendants: true, resolveMetadata: false });
             if (rootStat) {
                 return DirNode.createRoot(rootStat);
             }

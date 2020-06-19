@@ -36,7 +36,7 @@ export class WorkspaceUtils {
      */
     containsRootDirectory(uris: URI[]): boolean {
         // obtain all roots URIs for a given workspace
-        const rootUris = this.workspaceService.tryGetRoots().map(root => new URI(root.uri));
+        const rootUris = this.workspaceService.tryGetRoots().map(root => root.resource);
         // return true if at least a single URI is a root directory
         return rootUris.some(rootUri => uris.some(uri => uri.isEqualOrParent(rootUri)));
     }

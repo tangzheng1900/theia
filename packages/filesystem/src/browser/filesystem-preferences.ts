@@ -22,6 +22,7 @@ import {
     PreferenceSchema,
     PreferenceContribution
 } from '@theia/core/lib/browser/preferences';
+import { SUPPORTED_ENCODINGS } from './supported-encodings';
 
 export const filesystemPreferenceSchema: PreferenceSchema = {
     'type': 'object',
@@ -53,6 +54,27 @@ export const filesystemPreferenceSchema: PreferenceSchema = {
             'type': 'object',
             'description': 'Configure file associations to languages (e.g. \"*.extension\": \"html\"). \
 These have precedence over the default associations of the languages installed.'
+        },
+        'files.encoding': {
+            'type': 'string',
+            'enum': Object.keys(SUPPORTED_ENCODINGS),
+            'default': 'utf8',
+            'description': 'The default character set encoding to use when reading and writing files. This setting can also be configured per language.',
+            'scope': 'language-overridable',
+            'enumDescriptions': Object.keys(SUPPORTED_ENCODINGS).map(key => SUPPORTED_ENCODINGS[key].labelLong),
+            'included': Object.keys(SUPPORTED_ENCODINGS).length > 1
+        },
+        'files.autoGuessEncoding': {
+            'type': 'boolean',
+            'default': false,
+            'description': 'When enabled, the editor will attempt to guess the character set encoding when opening files. This setting can also be configured per language.',
+            'scope': 'language-overridable',
+            'included': Object.keys(SUPPORTED_ENCODINGS).length > 1
+        },
+        'files.participants.timeout': {
+            type: 'number',
+            default: 5000,
+            markdownDescription: 'Timeout in milliseconds after which file participants for create, rename, and delete are cancelled. Use `0` to disable participants.'
         }
     }
 };
@@ -62,6 +84,9 @@ export interface FileSystemConfiguration {
     'files.exclude': { [key: string]: boolean };
     'files.enableTrash': boolean;
     'files.associations': { [filepattern: string]: string };
+    'files.encoding': string;
+    'files.autoGuessEncoding': boolean;
+    'files.participants.timeout': number;
 }
 
 export const FileSystemPreferences = Symbol('FileSystemPreferences');
